@@ -1,0 +1,43 @@
+// Hack CPU: built from the standard Hack primitive chips.
+CHIP CPU {
+    IN inM[16], instruction[16], reset;
+    OUT outM[16], writeM, addressM[15], pc[15];
+
+    PARTS:
+    // A-instruction or C-instruction destination selection
+    Mux16(a=instruction, b=outM, sel=instruction[15], out=aInput);
+    // For A-instructions load instruction; for C-instructions load ALU result.
+    Not(in=instruction[15], out=isA);
+    And(a=instruction[15], b=instruction[5], out=loadAFromC);
+    Or(a=isA, b=loadAFromC, out=loadA);
+    And(a=instruction[15], b=instruction[4], out=loadD);
+    And(a=instruction[15], b=instruction[3], out=writeM);
+
+    // A register
+    ARegister(in=aInput, load=loadA, out=aOut, out[0..14]=addressM);
+    // D register
+    DRegister(in=outM, load=loadD, out=dOut);
+
+    // ALU
+    And(a=instruction[15], b=instruction[12], out=useM);
+    Mux16(a=aOut, b=inM, sel=useM, out=aluY);
+    ALU(x=dOut, y=aluY,
+        zx=instruction[11], nx=instruction[10],
+        zy=instruction[9], ny=instruction[8],
+        f=instruction[7], no=instruction[6],
+        out=outM, zr=zr, ng=ng);
+
+    // Jump logic: Hack jump bits are j1=JGT, j2=JEQ, j3=JLT.
+    Not(in=zr, out=notZr);
+    Not(in=ng, out=notNg);
+    And(a=notNg, b=notZr, out=positive);
+    And(a=instruction[0], b=positive, out=jumpIfGT);
+    And(a=instruction[1], b=zr, out=jumpIfEQ);
+    And(a=instruction[2], b=ng, out=jumpIfLT);
+    Or(a=jumpIfGT, b=jumpIfEQ, out=jumpPartial);
+    Or(a=jumpPartial, b=jumpIfLT, out=jumpCondition);
+    And(a=instruction[15], b=jumpCondition, out=takeJump);
+
+    // PC increments unless a jump is taken; reset has priority.
+    PC(in=aOut, load=takeJump, inc=true, reset=reset, out[0..14]=pc);
+}

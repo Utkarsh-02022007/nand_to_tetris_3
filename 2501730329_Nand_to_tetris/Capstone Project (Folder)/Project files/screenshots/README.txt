@@ -1,0 +1,1 @@
+Place genuine screenshots from your own Hardware Simulator and CPU Emulator runs here. Required: CPU.tst, Memory.tst, ComputerAdd.tst, ComputerMax.tst, ComputerRect.tst, and Box display.
